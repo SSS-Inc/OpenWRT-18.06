@@ -1,0 +1,156 @@
+[[PageOutline]]
+
+= Building and Installing OpenWrt on the Gateworks Laguna Family =
+Customers may choose to compile their own firmware or use our prebuilt binaries [http://dev.gateworks.com/laguna/images/ prebuilt-binaries].
+
+Please refer [wiki:OpenWrt/building here] for instructions on building OpenWrt for the Gateworks products.
+
+There are two distinct sets of products in the Laguna family and instructions on flashing firmware over Serial/ENET differs depending on which you have:
+ * NOR Flash - GW2387, GW2388, GW2391
+ * SPI Flash - GW2380, GW2382, GW2383 (small form-factor boards)
+
+= OpenWrt Release Information =
+The following OpenWrt branches support the Laguna Family:
+ * [https://github.com/Gateworks/openwrt/tree/16.02 16.02]
+  * See [wiki:OpenWrt/building#releases here] for general information
+  * Bump to linux 4.4.0 Kernel from 3.10.49
+  * GW2393 Support
+  * GW2383 Support
+  * For a list of default packages installed, please see [http://dev.gateworks.com/openwrt/16.02/cns3xxx/gateworks-cns3xxx.manifest here]
+ * [https://github.com/Gateworks/openwrt/tree/14.08 14.08]
+  * See [wiki:OpenWrt/building#releases here] for general information
+  * Kernel Bumped to 3.10.49 from 3.8
+  * For a list of default packages installed, please see [http://dev.gateworks.com/openwrt/14.08/cns3xxx/openwrt-cns3xxx.manifest here]
+
+
+= Acquiring and Installing Images =
+For a 'stable' pre-build, please visit [http://dev.gateworks.com/laguna/images/ this link] and download the appropriate file. For reference, please see below on what each file is:
+ * [http://dev.gateworks.com/laguna/images/laguna-owrt-13.06-nor.bin laguna-owrt-13.06-nor.bin] - Jtagable Openwrt 13.06 image for nor flash
+ * [http://dev.gateworks.com/laguna/images/laguna-owrt-13.06-spi.bin laguna-owrt-13.06-spi.bin] - Jtagable Openwrt 13.06 image for spi flash
+ * [http://dev.gateworks.com/laguna/images/laguna-owrt-14.08-nor.bin laguna-owrt-14.08-nor.bin] - Jtagable Openwrt 14.08 image for nor flash
+ * [http://dev.gateworks.com/laguna/images/laguna-owrt-14.08-spi.bin laguna-owrt-14.08-spi.bin] - Jtagable Openwrt 14.08 image for spi flash
+ * [http://dev.gateworks.com/laguna/images/laguna-owrt-16.02-nor.bin laguna-owrt-16.02-nor.bin] - Jtagable Openwrt 16.02 image for nor flash
+ * [http://dev.gateworks.com/laguna/images/laguna-owrt-16.02-spi.bin laguna-owrt-16.02-spi.bin] - Jtagable Openwrt 16.02 image for spi flash
+
+For nightly builds, please visit [http://dev.gateworks.com/openwrt/ here].
+
+If you prefer to grab the source code and build images yourself, please refer to [wiki:OpenWrt/building this page] for instructions.
+
+
+[=#jtag]
+=== Installing Firmware on a Laguna board via JTAG - Best Option ===
+See JTAG firmware install here: [wiki:jtag_instructions]
+
+
+[=#serialenet]
+=== Installing Firmware on a Laguna board via Serial/ENET ===
+
+[=#nor]
+==== NOR Flash (GW2387, GW2388, GW2391) ====
+If you have a JTAG programmer it may be easier to install firmware this way as it does not require ethernet, or a tftp server: See [#jtag above]
+
+To install firmware to a NOR Flash Laguna board using Serial/ENET once your kernel/rootfs are on a network attached tftpserver [wiki:tftpserver TFTP Instructions] (Customer must setup TFTP server) do the following:
+
+1. Connect your target board to your network, set ipaddress and serverip in uboot:
+{{{#!bash
+Laguna> setenv ipaddr 192.168.1.1
+Laguna> setenv serverip 192.168.1.146
+}}}
+ * boot the board and hit any key to break out of the default bootscript and get a U-Boot prompt
+ * Set ipaddr/serverip to something that makes sense for your local network
+
+2. Erase the entire flash (once executed the linux fs and kernel will be lost):
+{{{#!bash
+Laguna> erase 0x10060000 0x10ffffff
+}}}
+ * for 16MB flash use 'erase 0x10060000 0x10ffffff' (default flash size)
+ * for 32MB flash use 'erase 0x10060000 0x21ffffff'
+ * for 64MB flash use 'erase 0x10060000 0x23ffffff'
+
+3. Copy Linux kernel and root filesystem to board:
+ * if you are using our 13.06 or later BSP the kernel and rootfs are combined into a single image:
+{{{#!bash
+Laguna> tftpboot 0x00800000 laguna/openwrt-cns3xxx-squashfs_laguna_nor.bin
+Laguna> cp.b 0x00800000 0x10060000 $(filesize)
+}}}
+ * if you are using an older BSP that has only a separate kernel (openwrt-cns3xxx-uImage) and root filesystem (openwrt-cns3xxx-squashfs.img) use:
+{{{#!bash
+Laguna> tftpboot 0x00800000 laguna/openwrt-cns3xxx-uImage
+Laguna> cp.b 0x00800000 0x10060000 $(filesize)
+Laguna> tftpboot 0x00800000 laguna/openwrt-cns3xxx-squashfs.img
+Laguna> cp.b 0x00800000 0x10260000 $(filesize)
+}}}
+
+5. Boot into Linux:
+{{{#!bash
+Laguna> boot
+}}}
+
+If the bootloader environment was modified you may want to erase the u-boot env flash section to set the board back to factory defaults. This can be don
+by the following:
+{{{#!bash
+Laguna> protect off 0x10040000 +0x20000
+Laguna> erase 0x10040000 +0x20000
+Laguna> reset
+}}}
+
+
+[=#spi]
+==== SPI Flash (GW2380, GW2382, GW2383) small form-factor boards ====
+If you have a JTAG programmer it may be easier to install firmware this way as it does not require ethernet, or a tftp server: See [#jtag above]
+
+To install firmware to an SPI Flash Laguna board using Serial/ENET once your kernel/rootfs are on a network attached tftpserver [wiki:tftpserver TFTP Instructions] (Customer must setup TFTP server) do the following:
+
+1. Connect your target board to your network, set ipaddress and serverip in uboot
+{{{#!bash
+Laguna> setenv ipaddr 192.168.1.1
+Laguna> setenv serverip 192.168.1.146
+}}}
+ * boot the board and hit any key to break out of the default bootscript and get a U-Boot prompt
+ * Set ipaddr/serverip to something that makes sense for your local network
+
+2. Erase what is on the board currently (once executed the linux fs and kernel will be lost):
+{{{#!bash
+Laguna> erase 0x60080000 0x60ffffff
+}}}
+ * for 4MB flash use 'erase 0x60080000 0x603fffff'
+ * for 16MB flash use 'erase 0x60080000 0x60ffffff' (default flash size)
+ * for 32MB flash use 'erase 0x60080000 0x61ffffff'
+
+3. Copy Linux kernel and root filesystem to board:
+ * if you are using our 13.06 or later BSP the kernel and rootfs are combined into a single image:
+{{{#!bash
+Laguna> tftpboot 0x00800000 laguna/openwrt-cns3xxx-squashfs_laguna_spi.bin
+Laguna> cp.b 0x00800000 0x60080000 $(filesize)
+}}}
+ * if you are using an older BSP that has only a separate kernel (openwrt-cns3xxx-uImage) and root filesystem (openwrt-cns3xxx-squashfs.img) use:
+{{{#!bash
+Laguna> tftpboot 0x00800000 laguna/openwrt-cns3xxx-uImage
+Laguna> cp.b 0x00800000 0x60080000 $(filesize)
+Laguna> tftpboot 0x00800000 laguna/openwrt-cns3xxx-squashfs.img
+Laguna> cp.b 0x00800000 0x60200000 $(filesize)
+}}}
+
+5. Boot into Linux:
+{{{#!bash
+Laguna> boot
+}}}
+
+If the bootloader environment was modified you may want to erase the u-boot env flash section to set the board back to factory defaults. This can be done by the following:
+{{{#!bash
+Laguna> protect off 0x60040000 +0x40000
+Laguna> erase 0x60040000 +0x40000
+Laguna> reset
+}}}
+
+
+== Information ==
+You will also find tools to use all peripherals on the board such as the following:
+- GPS (gpsd)
+- uSD (fdisk, mke2fs, etc)
+- SATA (fdisk, mke2fs, etc)
+- RTC (hwclock)
+- HWMON (sysfs)
+- LED's (sysfs)
+- USB (kmod-usb-storage, kmod-serial, etc)
+- Serial (built-in)
